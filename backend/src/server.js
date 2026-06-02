@@ -53,17 +53,37 @@ const requiredEnv = [
   "JWT_SECRET"
 
 ];
+
 const dashboardRoutes =
   require(
     "./routes/dashboardRoutes"
   );
-  app.use(
 
-  "/api/v1/dashboard",
+const adminRoutes =
+  require(
+    "./routes/adminRoutes"
+  );
 
-  dashboardRoutes
+const walletRoutes =
+  require("./routes/walletRoutes");
 
-);
+const orderRoutes =
+  require("./routes/orderRoutes");
+
+const profileRoutes =
+  require("./routes/profileRoutes");
+
+const notificationRoutes =
+  require("./routes/notificationRoutes");
+
+const engagementRoutes =
+  require("./routes/engagementRoutes");
+
+const ticketRoutes =
+  require("./routes/ticketRoutes");
+
+const publicRoutes =
+  require("./routes/publicRoutes");
 
 requiredEnv.forEach(
 
@@ -306,6 +326,51 @@ app.use(
 app.use(
   "/api/v1/services",
   serviceRoutes
+);
+
+app.use(
+  "/api/v1/dashboard",
+  dashboardRoutes
+);
+
+app.use(
+  "/api/v1/admin",
+  adminRoutes
+);
+
+app.use(
+  "/api/v1/wallet",
+  walletRoutes
+);
+
+app.use(
+  "/api/v1/orders",
+  orderRoutes
+);
+
+app.use(
+  "/api/v1/profile",
+  profileRoutes
+);
+
+app.use(
+  "/api/v1/notifications",
+  notificationRoutes
+);
+
+app.use(
+  "/api/v1/engagement",
+  engagementRoutes
+);
+
+app.use(
+  "/api/v1/tickets",
+  ticketRoutes
+);
+
+app.use(
+  "/api/v1/public",
+  publicRoutes
 );
 
 /* 404 */

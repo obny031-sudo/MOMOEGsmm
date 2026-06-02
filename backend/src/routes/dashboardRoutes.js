@@ -17,9 +17,9 @@ const {
 
   );
 
-const protect =
+const { protect } =
   require(
-    "../middleware/authMiddleware"
+    "../middleware/auth"
   );
 
 router.get(

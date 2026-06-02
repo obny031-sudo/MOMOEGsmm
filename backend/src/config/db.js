@@ -20,6 +20,11 @@ const connectDB =
         "Mongo Connected 😈🔥"
       );
 
+      const { seedServices } = require("./seed");
+      await seedServices();
+      const { seedSettings } = require("./seedSettings");
+      await seedSettings();
+
     } catch (
       error
     ) {

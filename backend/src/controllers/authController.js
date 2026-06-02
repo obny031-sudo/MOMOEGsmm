@@ -10,6 +10,18 @@ const crypto =
 const User =
   require("../models/User");
 
+const { formatUser } =
+  require("../utils/userResponse");
+
+const { seedWelcomeNotifications } =
+  require("./userDataController");
+
+const { getDefaultNewUserBalance } =
+  require("../services/settingsService");
+
+const { recordTransaction } =
+  require("../utils/walletLedger");
+
 /* Token Helper */
 
 const sendToken =
@@ -76,10 +88,16 @@ exports.register =
         phone
       } = req.body;
 
+      const normalizedUsername =
+        String(username || "").trim();
+
+      const normalizedEmail =
+        String(email || "").trim().toLowerCase();
+
       if(
 
-        !username ||
-        !email ||
+        !normalizedUsername ||
+        !normalizedEmail ||
         !password
 
       ){
@@ -96,15 +114,31 @@ exports.register =
           });
       }
 
+      if(
+        normalizedUsername.length < 3
+      ){
+
+        return res
+          .status(400)
+          .json({
+
+            success:false,
+
+            message:
+              "Username must be at least 3 characters"
+
+          });
+      }
+
       const exists =
         await User.findOne({
 
           $or:[
             {
-              email
+              email: normalizedEmail
             },
             {
-              username
+              username: normalizedUsername
             }
           ]
 
@@ -146,17 +180,35 @@ exports.register =
           .substring(2,8)
           .toUpperCase();
 
+      const startingBalance =
+        await getDefaultNewUserBalance();
+
       const user =
         await User.create({
 
-          username,
-          email,
+          username: normalizedUsername,
+          email: normalizedEmail,
           password:
             hashed,
-          phone,
+          phone: phone || "",
           referralCode,
+          balance: startingBalance,
 
         });
+
+      if (startingBalance > 0) {
+        await recordTransaction({
+          userId: user._id,
+          type: "bonus",
+          amount: startingBalance,
+          balanceBefore: 0,
+          balanceAfter: startingBalance,
+          description: "Welcome balance",
+          referenceId: "registration",
+        });
+      }
+
+      await seedWelcomeNotifications(user._id);
 
       sendToken(
         user,
@@ -169,8 +221,45 @@ exports.register =
     ){
 
       console.log(
-        error
+        "Register error:",
+        error.message
       );
+
+      if(
+        error.code === 11000
+      ){
+
+        return res
+          .status(400)
+          .json({
+
+            success:false,
+
+            message:
+              "User already exists"
+
+          });
+      }
+
+      if(
+        error.name === "ValidationError"
+      ){
+
+        const messages =
+          Object.values(error.errors)
+            .map((e) => e.message)
+            .join(", ");
+
+        return res
+          .status(400)
+          .json({
+
+            success:false,
+
+            message: messages || "Validation failed"
+
+          });
+      }
 
       res
         .status(500)
@@ -400,7 +489,7 @@ exports.me =
 
         success:true,
 
-        user:req.user
+        user: formatUser(req.user)
 
       });
 

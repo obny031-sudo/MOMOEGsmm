@@ -57,9 +57,22 @@ const userSchema =
       enum:[
         "user",
         "vip",
+        "moderator",
+        "staff",
+        "reseller",
         "admin",
       ],
       default:"user",
+    },
+
+    favoriteServices:{
+      type:[Number],
+      default:[],
+    },
+
+    lastCheckIn:{
+      type:Date,
+      default:null,
     },
 
     vipTier:{
@@ -293,18 +306,10 @@ const userSchema =
     timestamps:true,
   });
 
-/* Indexes */
+/* Indexes — email/username already indexed via unique:true */
 
 userSchema.index({
-  email:1
-});
-
-userSchema.index({
-  username:1
-});
-
-userSchema.index({
-  referralCode:1
+  referralCode: 1,
 });
 
 module.exports =
