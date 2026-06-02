@@ -9,7 +9,10 @@ import {
   useRouter,
 } from "next/navigation";
 
-import dynamic from "next/dynamic";
+import { ApiError, apiFetch } from "@/lib/api/client";
+import { useAuth } from "@/components/auth/auth-provider";
+
+import { motion } from "framer-motion";
 
 import AmbientBackground from "@/components/scene/ambient-background";
 import FloatingDock from "@/components/scene/floating-dock";
@@ -27,23 +30,14 @@ import {
   Loader2,
 } from "lucide-react";
 
-/* Motion Safe */
-
-const MotionDiv =
-  dynamic(
-    ()=>import("framer-motion")
-      .then(
-        mod=>mod.motion.div
-      ),
-    {
-      ssr:false
-    }
-  );
+const MotionDiv = motion.div;
 
 export default function RegisterPage(){
 
   const router =
     useRouter();
+
+  const auth = useAuth();
 
   const [
 
@@ -115,27 +109,20 @@ export default function RegisterPage(){
       true
     );
 
-    const token =
-      localStorage.getItem(
-        "token"
-      );
-
-    if(
-      token
-    ){
-
-      router.replace(
-        "/dashboard"
-      );
+    if (auth.isLoading) return;
+    if (auth.isAuthenticated) {
+      router.replace("/dashboard");
     }
+  }, [auth.isLoading, auth.isAuthenticated, router]);
 
-  },[]);
-
-  if(
-    !mounted
-  ){
-
-    return null;
+  if (!mounted) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050816] text-white">
+        <div className="rounded-[36px] border border-white/10 bg-white/[0.04] px-8 py-5 backdrop-blur-3xl text-zinc-400">
+          Loading...
+        </div>
+      </main>
+    );
   }
 
   const strength =
@@ -160,13 +147,6 @@ export default function RegisterPage(){
       .test(
         form.email
       );
-
-  const api =
-
-    process.env
-      .NEXT_PUBLIC_API_URL ||
-
-    "http://localhost:5000";
 
   /* Register */
 
@@ -243,63 +223,23 @@ export default function RegisterPage(){
           true
         );
 
-        const response =
-          await fetch(
+        const data = await apiFetch<{
+          success: boolean;
+          token: string;
+          user?: Record<string, unknown>;
+        }>("/api/v1/auth/register", {
+          method: "POST",
+          body: JSON.stringify({
+            username: form.username,
+            email: form.email,
+            password: form.password,
+          }),
+        });
 
-            `${api}/api/v1/auth/register`,
-
-            {
-
-              method:"POST",
-
-              headers:{
-                "Content-Type":
-                  "application/json"
-              },
-
-              body:
-                JSON.stringify({
-
-                  username:
-                    form.username,
-
-                  email:
-                    form.email,
-
-                  password:
-                    form.password,
-
-                }),
-
-            }
-
-          );
-
-        const data =
-          await response.json();
-
-        if(
-          !response.ok
-        ){
-
-          return setError(
-
-            data.message ||
-            "Register failed"
-
-          );
-        }
-
-        localStorage.setItem(
-          "token",
-          data.token
-        );
-
-        localStorage.setItem(
-          "user",
-          JSON.stringify(
-            data.user
-          )
+        auth.login(
+          data.token,
+          data.user as Parameters<typeof auth.login>[1],
+          true
         );
 
         setSuccess(
@@ -314,13 +254,15 @@ export default function RegisterPage(){
 
         },1000);
 
-      }catch{
-
+      } catch (err) {
         setError(
-          "Server unavailable"
+          err instanceof ApiError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : "Server unavailable"
         );
-
-      }finally{
+      } finally {
 
         setLoading(
           false

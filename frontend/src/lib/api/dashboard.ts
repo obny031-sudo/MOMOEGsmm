@@ -1,8 +1,9 @@
+import { ApiError, apiFetch, readStoredUser } from "@/lib/api/client";
+
 export type DashboardData = {
   username: string;
   email: string;
   avatar: string | null;
-
   balance: number;
   spent: number;
   pending: number;
@@ -10,148 +11,131 @@ export type DashboardData = {
   health: number;
   notifications: number;
   verified: boolean;
-
   stats: {
     orders: number;
     growth: number;
     completed: number;
     active: number;
   };
-
   ticker: string[];
   platforms: string[];
-
   orderFeed: string[];
   depositFeed: string[];
   processingFeed: string[];
-
-  alerts: {
-    title: string;
-    type: string;
-  }[];
-
-  profile: {
-    rank: string;
-    joined: string;
-    status: string;
-  };
+  alerts: { title: string; type: string }[];
+  profile: { rank: string; joined: string; status: string };
 };
 
-export function getMockDashboard(): DashboardData {
+type DashboardApiResponse = {
+  success: boolean;
+  dashboard: Partial<DashboardData>;
+};
+
+const DEFAULT_PLATFORMS = [
+  "Telegram",
+  "TikTok",
+  "Instagram",
+  "YouTube",
+  "Facebook",
+  "WhatsApp",
+];
+
+function emptyDashboard(): DashboardData {
   return {
-    username: "Elite User",
-    email: "elite@momoeg.com",
+    username: "User",
+    email: "",
     avatar: null,
-
-    balance: 4320,
-    spent: 1772,
-    pending: 230,
-    bonus: 80,
+    balance: 0,
+    spent: 0,
+    pending: 0,
+    bonus: 0,
     health: 99,
-    notifications: 3,
-    verified: true,
-
-    stats: {
-      orders: 4992724,
-      growth: 12,
-      completed: 95,
-      active: 18,
-    },
-
-    ticker: [
-      "System Stable",
-      "API Healthy",
-      "Payments Running",
-      "Platform Online",
-      "Security Verified",
-      "New Services Added",
-    ],
-
-    platforms: [
-      "Telegram",
-      "TikTok",
-      "Instagram",
-      "YouTube",
-      "Facebook",
-      "WhatsApp",
-    ],
-
-    orderFeed: [
-      "Instagram Followers • Completed",
-      "TikTok Likes • Running",
-      "Telegram Members • Delivered",
-      "YouTube Views • Processing",
-      "Facebook Followers • Completed",
-      "Instagram Likes • Running",
-      "TikTok Views • Queued",
-      "Telegram Votes • Delivered",
-    ],
-
-    depositFeed: [
-      "+$50 Deposit",
-      "+$120 Added",
-      "+$30 Wallet Topup",
-      "+$75 Deposit",
-      "+$200 Added",
-    ],
-
-    processingFeed: [
-      "Queued",
-      "Running",
-      "Delivered",
-      "Validating",
-      "Processing",
-      "Syncing",
-      "Protected",
-      "Verified",
-    ],
-
-    alerts: [
-      {
-        title: "Security Verified",
-        type: "success",
-      },
-      {
-        title: "New Services Added",
-        type: "info",
-      },
-      {
-        title: "Wallet Bonus Added",
-        type: "reward",
-      },
-    ],
-
-    profile: {
-      rank: "Elite",
-      joined: "2025",
-      status: "Premium",
-    },
+    notifications: 0,
+    verified: false,
+    stats: { orders: 0, growth: 0, completed: 0, active: 0 },
+    ticker: ["System Stable", "API Healthy"],
+    platforms: DEFAULT_PLATFORMS,
+    orderFeed: [],
+    depositFeed: [],
+    processingFeed: ["Queued", "Running"],
+    alerts: [],
+    profile: { rank: "Standard", joined: "2025", status: "Active" },
   };
 }
 
+function mergeDashboard(partial: Partial<DashboardData>): DashboardData {
+  const base = emptyDashboard();
+  return {
+    ...base,
+    ...partial,
+    stats: { ...base.stats, ...partial.stats },
+    profile: { ...base.profile, ...partial.profile },
+    orderFeed: partial.orderFeed ?? base.orderFeed,
+    depositFeed: partial.depositFeed ?? base.depositFeed,
+    processingFeed: partial.processingFeed ?? base.processingFeed,
+    alerts: partial.alerts ?? base.alerts,
+    ticker: partial.ticker ?? base.ticker,
+    platforms: partial.platforms ?? base.platforms,
+  };
+}
+
+function applyStoredUser(data: DashboardData): DashboardData {
+  const user = readStoredUser<{
+    username?: string;
+    email?: string;
+    balance?: number;
+    verified?: boolean;
+  }>();
+  if (!user) return data;
+  return {
+    ...data,
+    username: user.username || data.username,
+    email: user.email || data.email,
+    balance: user.balance ?? data.balance,
+    verified: user.verified ?? data.verified,
+  };
+}
+
+function isNetworkOrServerError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return true;
+  return error.status >= 500 || error.status === 0;
+}
+
+/** Fetches live dashboard from backend; mock fallback only when server unreachable */
 export async function getDashboard(): Promise<DashboardData> {
+  const result = await apiFetch<DashboardApiResponse>("/api/v1/dashboard", {
+    method: "GET",
+    auth: true,
+  });
+
+  if (!result?.dashboard) {
+    throw new Error("Invalid dashboard response");
+  }
+
+  return applyStoredUser(mergeDashboard(result.dashboard));
+}
+
+export async function getDashboardSafe(): Promise<{
+  data: DashboardData;
+  fromFallback: boolean;
+}> {
   try {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("token") || sessionStorage.getItem("token")
-        : null;
-
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
-
-    const mockData = getMockDashboard();
-
-    if (!mockData) {
-      throw new Error("Failed to load mock data");
-    }
-
-    return mockData;
+    const data = await getDashboard();
+    return { data, fromFallback: false };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to fetch dashboard";
-
-    console.error("Dashboard API Error:", errorMessage);
-    throw new Error(errorMessage);
+    if (
+      error instanceof ApiError &&
+      (error.status === 401 || error.status === 403)
+    ) {
+      throw error;
+    }
+    if (!isNetworkOrServerError(error)) {
+      throw error;
+    }
+    console.warn("Dashboard using offline fallback");
+    return {
+      data: applyStoredUser(mergeDashboard({})),
+      fromFallback: true,
+    };
   }
 }

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const items = [
   {
@@ -33,6 +34,7 @@ const items = [
 
 export default function FloatingDock() {
   const pathname = usePathname();
+  const auth = useAuth();
 
   return (
     <motion.header
@@ -89,6 +91,18 @@ export default function FloatingDock() {
 
         {/* Auth */}
         <div className="flex items-center gap-3">
+
+          {auth.isAuthenticated &&
+            ["admin", "moderator", "staff"].includes(
+              auth.user?.role || ""
+            ) && (
+            <Link
+              href="/admin"
+              className="rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-5 py-2.5 text-sm text-indigo-200 transition hover:bg-indigo-500/20"
+            >
+              Admin
+            </Link>
+          )}
 
           <Link
             href="/login"

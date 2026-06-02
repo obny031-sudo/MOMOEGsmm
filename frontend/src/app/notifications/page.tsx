@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import AmbientBackground from "@/components/scene/ambient-background";
 import FloatingDock from "@/components/scene/floating-dock";
+import { getNotifications, NotificationItem } from "@/lib/api/notifications";
 import {
   Bell,
   Wallet,
@@ -9,38 +11,15 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
-const notifications = [
-  {
-    id:1,
-    type:"wallet",
-    title:"Deposit Approved",
-    text:"$25 added",
-    time:"2m"
-  },
-  {
-    id:2,
-    type:"order",
-    title:"Order Started",
-    text:"Instagram followers",
-    time:"8m"
-  },
-  {
-    id:3,
-    type:"system",
-    title:"Secure Session",
-    text:"Protection active",
-    time:"1h"
-  },
-  {
-    id:4,
-    type:"order",
-    title:"Order Completed",
-    text:"TikTok views done",
-    time:"2h"
-  },
-];
-
 export default function NotificationPage(){
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getNotifications()
+      .then(setNotifications)
+      .finally(() => setLoading(false));
+  }, []);
 
   const iconFor=(t:string)=>{
 
@@ -72,8 +51,7 @@ export default function NotificationPage(){
     }
   };
 
-  return(
-
+  return (
     <main className="relative min-h-screen overflow-hidden bg-[#070b14] text-white">
 
       <AmbientBackground/>
@@ -135,6 +113,14 @@ export default function NotificationPage(){
         {/* list */}
 
         <div className="space-y-3">
+
+          {loading && (
+            <p className="text-center text-zinc-500">Loading notifications...</p>
+          )}
+
+          {!loading && notifications.length === 0 && (
+            <p className="text-center text-zinc-500">No notifications yet</p>
+          )}
 
           {notifications.map(
             (n)=>(

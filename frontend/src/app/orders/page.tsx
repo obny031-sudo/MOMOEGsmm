@@ -8,7 +8,9 @@ import {
 
 import AmbientBackground from "@/components/scene/ambient-background";
 import FloatingDock from "@/components/scene/floating-dock";
-import { getOrders } from "@/lib/api/orders";
+import { getOrders, reorder } from "@/lib/api/orders";
+import { ApiError } from "@/lib/api/client";
+import { useAuth } from "@/components/auth/auth-provider";
 import {
   Search,
   Activity,
@@ -41,8 +43,10 @@ const timeline = [
 ];
 
 export default function OrdersPage() {
+  const auth = useAuth();
   const [orders, setOrders] =
     useState<any[]>([]);
+  const [actionError, setActionError] = useState("");
 
   const [search, setSearch] =
     useState("");
@@ -53,19 +57,21 @@ export default function OrdersPage() {
   const [selected, setSelected] =
     useState<any>(null);
 
-  useEffect(() => {
-    async function load() {
-      const data =
-        await getOrders();
+  const [loading, setLoading] = useState(true);
 
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      const data = await getOrders();
       setOrders(data);
-
-      if (data.length) {
-        setSelected(data[0]);
-      }
+      setSelected(data.length ? data[0] : null);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    load();
+  useEffect(() => {
+    loadOrders();
   }, []);
 
   const filtered =
@@ -157,6 +163,19 @@ export default function OrdersPage() {
               Track and manage
               operations.
             </p>
+
+            {loading && (
+              <p className="mt-4 text-zinc-500">Loading orders...</p>
+            )}
+
+            {!loading && orders.length === 0 && (
+              <p className="mt-4 text-zinc-500">
+                No orders yet.{" "}
+                <a href="/services" className="text-emerald-300 hover:underline">
+                  Place your first order
+                </a>
+              </p>
+            )}
 
           </div>
 
@@ -452,7 +471,25 @@ export default function OrdersPage() {
                         Track
                       </button>
 
-                      <button className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] py-3">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!selected?._id && !selected?.id) return;
+                          try {
+                            setActionError("");
+                            const result = await reorder(String(selected._id));
+                            auth.patchUser({ balance: result.balance });
+                            await loadOrders();
+                          } catch (err) {
+                            setActionError(
+                              err instanceof ApiError
+                                ? err.message
+                                : "Reorder failed"
+                            );
+                          }
+                        }}
+                        className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] py-3"
+                      >
                         <RotateCcw size={15}/>
                         Reorder
                       </button>

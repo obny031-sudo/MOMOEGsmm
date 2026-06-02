@@ -81,7 +81,6 @@ Please verify payment.`;
   };
 
   return (
-
     <main className="relative min-h-screen overflow-hidden bg-[#060814] text-white">
 
       <AmbientBackground />

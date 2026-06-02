@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AmbientBackground from "@/components/scene/ambient-background";
 import FloatingDock from "@/components/scene/floating-dock";
-import { getDashboard, DashboardData } from "@/lib/api/dashboard";
+import { getDashboardSafe, DashboardData } from "@/lib/api/dashboard";
+import { ApiError } from "@/lib/api/client";
+import { useRequireAuth } from "@/hooks/use-require-auth";
 import {
   Wallet,
   Bell,
@@ -19,79 +22,52 @@ import CountUp from "react-countup";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const auth = useRequireAuth();
 
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
-  const [isChecking, setIsChecking] = useState(true);
 
-  /* LOGOUT - مع router dependency فقط */
   const logout = useCallback(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("token");
+    auth.logout();
     router.replace("/login");
-  }, [router]);
+  }, [auth, router]);
 
-  /* LOAD DASHBOARD DATA - بدون logout كـ dependency */
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError("");
 
-      const data = await getDashboard();
-
-      if (!data) {
-        throw new Error("No dashboard data returned");
-      }
-
+      const { data } = await getDashboardSafe();
       setDashboard(data);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to load dashboard";
-
-      console.error("Dashboard Error:", errorMessage);
-
-      if (
-        errorMessage.includes("401") ||
-        errorMessage.includes("No authentication token")
-      ) {
-        logout();
-        return;
-      }
-
-      setError(errorMessage);
-      setLoading(false);
-    }
-  }, [logout]);
-
-  /* AUTH CHECK - شغالة مرة واحدة فقط */
-  useEffect(() => {
-    const checkAuth = () => {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("token") || sessionStorage.getItem("token")
-          : null;
-
-      setIsChecking(false);
-
-      if (!token) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        auth.logout();
         router.replace("/login");
         return;
       }
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load dashboard";
+      console.error("Dashboard Error:", errorMessage);
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth, router]);
 
-      loadDashboard();
-    };
-
-    checkAuth();
-  }, []); // ← بدون dependencies
+  useEffect(() => {
+    if (auth.isLoading || !auth.isAuthenticated) return;
+    loadDashboard();
+  }, [auth.isLoading, auth.isAuthenticated, loadDashboard]);
 
   /* AUTO REFRESH - كل 30 ثانية */
   useEffect(() => {
     if (loading || error || !dashboard) return;
 
     const interval = setInterval(() => {
-      loadDashboard();
+      loadDashboard(true);
     }, 30000);
 
     return () => clearInterval(interval);
@@ -112,8 +88,7 @@ export default function DashboardPage() {
     return "Good Evening";
   }, []);
 
-  /* CHECKING AUTH */
-  if (isChecking) {
+  if (auth.isLoading || !auth.isAuthenticated) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#060814] text-white">
         <motion.div
@@ -159,7 +134,7 @@ export default function DashboardPage() {
         <div className="rounded-[36px] border border-red-500/10 bg-red-500/10 px-8 py-6">
           <p className="text-red-300 mb-4">{error}</p>
           <button
-            onClick={loadDashboard}
+            onClick={() => loadDashboard()}
             className="rounded-2xl bg-red-500/20 px-4 py-2 text-red-300 hover:bg-red-500/30 transition"
           >
             Retry
@@ -327,22 +302,23 @@ export default function DashboardPage() {
             {/* QUICK ACTIONS */}
             <div className="mt-7 grid gap-4 md:grid-cols-4">
               {[
-                { title: "Deposit", icon: "💸" },
-                { title: "Orders", icon: "🛒" },
-                { title: "Wallet", icon: "🏦" },
-                { title: "Support", icon: "🛡" },
-              ].map((item, i) => (
-                <motion.button
-                  key={i}
-                  whileHover={{
-                    y: -3,
-                    scale: 1.02,
-                  }}
-                  className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-3xl transition hover:border-indigo-500/20 hover:bg-indigo-500/[0.06]"
-                >
-                  <div className="text-2xl">{item.icon}</div>
-                  <h3 className="mt-4 text-lg font-semibold">{item.title}</h3>
-                </motion.button>
+                { title: "Deposit", icon: "💸", href: "/wallet" },
+                { title: "Orders", icon: "🛒", href: "/orders" },
+                { title: "Wallet", icon: "🏦", href: "/wallet" },
+                { title: "Support", icon: "🛡", href: "/support" },
+              ].map((item) => (
+                <Link key={item.title} href={item.href}>
+                  <motion.div
+                    whileHover={{
+                      y: -3,
+                      scale: 1.02,
+                    }}
+                    className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-3xl transition hover:border-indigo-500/20 hover:bg-indigo-500/[0.06] cursor-pointer"
+                  >
+                    <div className="text-2xl">{item.icon}</div>
+                    <h3 className="mt-4 text-lg font-semibold">{item.title}</h3>
+                  </motion.div>
+                </Link>
               ))}
             </div>
 

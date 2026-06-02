@@ -8,7 +8,12 @@ import {
 
 import AmbientBackground from "@/components/scene/ambient-background";
 import FloatingDock from "@/components/scene/floating-dock";
-import { getServices } from "@/lib/api/services";
+import { getServices, ServiceItem } from "@/lib/api/services";
+import { createOrder } from "@/lib/api/orders";
+import { ApiError } from "@/lib/api/client";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useRouter } from "next/navigation";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 import {
   Sparkles,
@@ -25,11 +30,13 @@ import {
 } from "framer-motion";
 
 export default function ServicesPage() {
+  const router = useRouter();
+  const auth = useAuth();
 
-  const [
-    services,
-    setServices
-  ] = useState<any[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState("");
 
   const [
     category,
@@ -149,6 +156,61 @@ export default function ServicesPage() {
         selected.price
       ).toFixed(2)
       : "0";
+
+  const handlePlaceOrder = async () => {
+    setSubmitError("");
+    setSubmitSuccess("");
+
+    if (!auth.isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+
+    if (!selected) {
+      setSubmitError("Select a service");
+      return;
+    }
+
+    if (!link.trim()) {
+      setSubmitError("Enter your target link");
+      return;
+    }
+
+    if (!qty || qty < selected.min || qty > selected.max) {
+      setSubmitError(
+        `Quantity must be between ${selected.min} and ${selected.max}`
+      );
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const result = await createOrder({
+        serviceId: selected.id,
+        link: link.trim(),
+        quantity: qty,
+      });
+
+      auth.patchUser({ balance: result.balance });
+      setSubmitSuccess(result.message || "Order placed successfully");
+      setLink("");
+      setQuantity("");
+
+      setTimeout(() => {
+        router.push("/orders");
+      }, 1200);
+    } catch (err) {
+      setSubmitError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to place order"
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
 
@@ -515,10 +577,34 @@ export default function ServicesPage() {
 
                 </motion.div>
 
-                <button className="w-full rounded-3xl bg-gradient-to-r from-indigo-500 to-emerald-400 py-4 font-medium text-white transition hover:scale-[1.02] shadow-[0_0_30px_rgba(99,102,241,.25)]">
+                {submitError && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                    <AlertCircle size={16} />
+                    {submitError}
+                  </div>
+                )}
 
-                  Place Order
+                {submitSuccess && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                    <CheckCircle2 size={16} />
+                    {submitSuccess}
+                  </div>
+                )}
 
+                <button
+                  type="button"
+                  disabled={submitting || !selected}
+                  onClick={handlePlaceOrder}
+                  className="flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-indigo-500 to-emerald-400 py-4 font-medium text-white transition hover:scale-[1.02] shadow-[0_0_30px_rgba(99,102,241,.25)] disabled:opacity-60 disabled:hover:scale-100"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Placing Order...
+                    </>
+                  ) : (
+                    "Place Order"
+                  )}
                 </button>
 
               </div>

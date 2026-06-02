@@ -7,6 +7,9 @@ import LanguageToggle from "@/components/scene/language-toggle";
 import {
   LanguageProvider,
 } from "@/lib/i18n/language-context";
+import { AuthProvider } from "@/components/auth/auth-provider";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import ThemeToggle from "@/components/theme/theme-toggle";
 
 export const metadata: Metadata = {
   title: "MOMOEG",
@@ -25,16 +28,19 @@ export default function RootLayout({
       <body className="bg-[#07080c] text-white">
 
         <LanguageProvider>
+          <ThemeProvider>
+          <AuthProvider>
+            {/* Floating Contact */}
+            <ContactDock />
 
-          {/* Floating Contact */}
-          <ContactDock />
+            {/* EN / AR */}
+            <LanguageToggle />
 
-          {/* EN / AR */}
-          <LanguageToggle />
-
-          {/* Pages */}
-          {children}
-
+            {/* Pages */}
+            {children}
+            <ThemeToggle />
+          </AuthProvider>
+          </ThemeProvider>
         </LanguageProvider>
 
       </body>

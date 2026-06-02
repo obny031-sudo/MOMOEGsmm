@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
+import { ApiError, apiFetch } from "@/lib/api/client";
+import { useAuth } from "@/components/auth/auth-provider";
+import { motion } from "framer-motion";
 import {
   Mail,
   Lock,
@@ -16,18 +18,12 @@ import {
   Loader2,
 } from "lucide-react";
 
-const MotionDiv = dynamic(
-  () => import("framer-motion").then((mod) => mod.motion.div),
-  { ssr: false }
-);
-
-const MotionButton = dynamic(
-  () => import("framer-motion").then((mod) => mod.motion.button),
-  { ssr: false }
-);
+const MotionDiv = motion.div;
+const MotionButton = motion.button;
 
 export default function LoginPage() {
   const router = useRouter();
+  const auth = useAuth();
 
   const [mounted, setMounted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -43,18 +39,20 @@ export default function LoginPage() {
   useEffect(() => {
     setMounted(true);
 
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("token") || sessionStorage.getItem("token")
-        : null;
-
-    if (token) {
+    if (auth.isLoading) return;
+    if (auth.isAuthenticated) {
       router.replace("/dashboard");
     }
-  }, [router]);
+  }, [auth.isLoading, auth.isAuthenticated, router]);
 
   if (!mounted) {
-    return null;
+    return (
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050816] text-white">
+        <div className="rounded-[36px] border border-white/10 bg-white/[0.04] px-8 py-5 backdrop-blur-3xl text-zinc-400">
+          Loading...
+        </div>
+      </main>
+    );
   }
 
   const handleLogin = async () => {
@@ -67,43 +65,29 @@ export default function LoginPage() {
 
       setLoading(true);
 
-      const response = await fetch(
-        "http://localhost:5000/api/v1/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: form.email,
-            password: form.password,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setLoading(false);
-        return setError(data.message || "Login failed");
-      }
+      const data = await apiFetch<{
+        success: boolean;
+        token: string;
+        user?: Record<string, unknown>;
+        message?: string;
+      }>("/api/v1/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+        }),
+      });
 
       if (!data.token) {
         setLoading(false);
         return setError("No token received from server");
       }
 
-      if (form.remember) {
-        localStorage.setItem("token", data.token);
-        if (data.user) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-        }
-        sessionStorage.removeItem("token");
-      } else {
-        sessionStorage.setItem("token", data.token);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-      }
+      auth.login(
+        data.token,
+        data.user as Parameters<typeof auth.login>[1],
+        form.remember
+      );
 
       setSuccess(true);
 
@@ -113,8 +97,11 @@ export default function LoginPage() {
       }, 500);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "Server unavailable";
-
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Server unavailable";
       setError(errorMessage);
       setLoading(false);
     }
