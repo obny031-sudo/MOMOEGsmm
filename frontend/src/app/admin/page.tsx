@@ -11,7 +11,10 @@ import {
   Activity,
   Crown,
   ShieldCheck,
+  TrendingUp,
+  AlertTriangle,
 } from "lucide-react";
+import { formatEgp } from "@/lib/format-money";
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState<AdminOverview | null>(null);
@@ -41,21 +44,22 @@ export default function AdminDashboardPage() {
     );
   }
 
+  const o = data.overview;
   const stats = [
-    { label: "Total Users", value: data.overview.totalUsers, icon: Users },
-    { label: "Total Orders", value: data.overview.totalOrders, icon: ShoppingBag },
+    { label: "Revenue Today", value: formatEgp(o.revenueToday ?? 0), icon: DollarSign },
+    { label: "Revenue Month", value: formatEgp(o.revenueMonth ?? 0), icon: DollarSign },
+    { label: "Profit Today", value: formatEgp(o.profitToday ?? 0), icon: TrendingUp },
+    { label: "Profit Month", value: formatEgp(o.profitMonth ?? 0), icon: TrendingUp },
+    { label: "Active Users", value: o.activeUsers ?? 0, icon: Users },
+    { label: "Pending Orders", value: o.pendingOrders, icon: Activity },
+    { label: "Failed Orders", value: o.failedOrders ?? 0, icon: AlertTriangle },
     {
-      label: "Revenue",
-      value: `$${data.overview.totalRevenue.toFixed(2)}`,
-      icon: DollarSign,
+      label: "Provider Health",
+      value: `${o.providersOnline ?? 0}/${o.providersTotal ?? 0}`,
+      icon: ShieldCheck,
     },
-    {
-      label: "Pending Orders",
-      value: data.overview.pendingOrders,
-      icon: Activity,
-    },
-    { label: "VIP Users", value: data.overview.vipUsers, icon: Crown },
-    { label: "Admins", value: data.overview.admins, icon: ShieldCheck },
+    { label: "Service Health", value: `${o.serviceHealth ?? 100}%`, icon: Crown },
+    { label: "System Health", value: `${o.systemHealth ?? 100}%`, icon: ShieldCheck },
   ];
 
   return (

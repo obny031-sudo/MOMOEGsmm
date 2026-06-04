@@ -19,9 +19,19 @@ export default function AdminSettingsPage() {
   };
 
   const fields = [
-    { key: "defaultNewUserBalance", label: "Default new user balance ($)" },
-    { key: "dailyLoginReward", label: "Daily check-in reward ($)" },
+    { key: "siteName", label: "Site name" },
+    { key: "currency", label: "Currency code" },
+    { key: "defaultNewUserBalance", label: "Default new user balance (EGP)" },
+    { key: "minDeposit", label: "Minimum deposit (EGP)" },
+    { key: "minOrder", label: "Minimum order amount (EGP)" },
+    { key: "referralPercent", label: "Referral commission %" },
+    { key: "telegram", label: "Telegram link" },
+    { key: "whatsapp", label: "WhatsApp number" },
+    { key: "supportEmail", label: "Support email" },
+    { key: "dailyLoginReward", label: "Daily check-in reward (EGP)" },
     { key: "dailyLoginEnabled", label: "Daily check-in enabled", type: "checkbox" },
+    { key: "registrationEnabled", label: "Registration enabled", type: "checkbox" },
+    { key: "depositsEnabled", label: "Deposits enabled", type: "checkbox" },
     { key: "maintenanceMode", label: "Maintenance mode", type: "checkbox" },
     { key: "featureCoupons", label: "Coupons enabled", type: "checkbox" },
     { key: "featureReferrals", label: "Referrals enabled", type: "checkbox" },
@@ -51,15 +61,20 @@ export default function AdminSettingsPage() {
               <input
                 className="rounded-xl border border-white/10 bg-black/30 px-4 py-2"
                 value={String(settings[f.key] ?? "")}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const numericKeys = [
+                    "defaultNewUserBalance",
+                    "dailyLoginReward",
+                    "minDeposit",
+                    "minOrder",
+                    "referralPercent",
+                  ];
                   setSettings({
                     ...settings,
-                    [f.key]:
-                      f.key.includes("Enabled") || f.key.includes("Mode")
-                        ? e.target.value === "true"
-                        : Number(e.target.value),
-                  })
-                }
+                    [f.key]: numericKeys.includes(f.key) ? Number(v) : v,
+                  });
+                }}
               />
             )}
           </label>

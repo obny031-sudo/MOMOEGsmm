@@ -17,6 +17,7 @@ import {
   Activity,
   Ticket,
   Megaphone,
+  Server,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -26,10 +27,13 @@ const links = [
   { href: "/admin/roles", label: "Roles", icon: Shield, adminOnly: true },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/services", label: "Services", icon: Layers },
+  { href: "/admin/providers", label: "Providers", icon: Server, adminOnly: true },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/tickets", label: "Tickets", icon: Ticket },
   { href: "/admin/wallet", label: "Wallet", icon: Wallet },
+  { href: "/admin/finance", label: "Finance", icon: Wallet, adminOnly: true },
+  { href: "/admin/owner", label: "Owner", icon: Crown, ownerOnly: true },
   { href: "/admin/health", label: "System Health", icon: Activity },
   { href: "/admin/audit", label: "Audit Logs", icon: ScrollText },
   { href: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
@@ -38,7 +42,8 @@ const links = [
 export default function AdminSidebar() {
   const pathname = usePathname();
   const auth = useAuth();
-  const isAdmin = auth.user?.role === "admin";
+  const isAdmin = auth.user?.role === "admin" || auth.user?.role === "owner";
+  const isOwner = auth.user?.role === "owner";
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-white/10 bg-white/[0.03] p-5 backdrop-blur-3xl">
@@ -50,6 +55,7 @@ export default function AdminSidebar() {
       <nav className="flex-1 space-y-1">
         {links.map((item) => {
           if (item.adminOnly && !isAdmin) return null;
+          if ("ownerOnly" in item && item.ownerOnly && !isOwner) return null;
           const active =
             pathname === item.href ||
             (item.href !== "/admin" && pathname.startsWith(item.href));

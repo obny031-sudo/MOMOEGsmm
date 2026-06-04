@@ -22,53 +22,53 @@ const { getDefaultNewUserBalance } =
 const { recordTransaction } =
   require("../utils/walletLedger");
 
+const {
+  createSession,
+  tokenIdFromJwt,
+  parseUserAgent,
+} = require("../utils/sessionManager");
+
 /* Token Helper */
 
-const sendToken =
-(
-  user,
-  statusCode,
-  res
-)=>{
+const sendToken = async (user, statusCode, res, req) => {
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "30d",
+  });
 
-  const token =
-    jwt.sign(
+  if (req) {
+    const tokenId = tokenIdFromJwt(token);
+    await createSession(user._id, req, tokenId);
 
-      {
-        id:user._id
-      },
-
-      process.env.JWT_SECRET,
-
-      {
-        expiresIn:"30d"
-      }
-
-    );
-
-  res
-    .status(
-      statusCode
-    )
-    .json({
-
-      success:true,
-
-      token,
-
-      user:{
-
-        id:user._id,
-        username:user.username,
-        email:user.email,
-        role:user.role,
-        balance:user.balance,
-        verified:user.verified,
-
-      }
-
+    const ua = req.headers["user-agent"] || "";
+    const { device } = parseUserAgent(ua);
+    const ip = req.ip || req.headers["x-forwarded-for"] || "";
+    user.loginHistory = user.loginHistory || [];
+    user.loginHistory.push({
+      ip: String(ip).split(",")[0].trim(),
+      device,
+      date: new Date(),
     });
+    if (user.loginHistory.length > 50) {
+      user.loginHistory = user.loginHistory.slice(-50);
+    }
+    user.lastLogin = new Date();
+    user.lastIP = String(ip).split(",")[0].trim();
+    await user.save();
+  }
 
+  res.status(statusCode).json({
+    success: true,
+    token,
+    user: {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      balance: user.balance,
+      verified: user.verified,
+      preferences: user.preferences,
+    },
+  });
 };
 
 /* Register */
@@ -210,11 +210,7 @@ exports.register =
 
       await seedWelcomeNotifications(user._id);
 
-      sendToken(
-        user,
-        201,
-        res
-      );
+      await sendToken(user, 201, res, req);
 
     }catch(
       error
@@ -427,31 +423,9 @@ exports.login =
       user.lockUntil=
         null;
 
-      user.lastLogin=
-        new Date();
-
-      user.lastIP=
-        req.ip;
-
-      user.loginHistory
-        .push({
-
-          ip:req.ip,
-
-          device:
-            req.headers[
-              "user-agent"
-            ]
-
-        });
-
       await user.save();
 
-      sendToken(
-        user,
-        200,
-        res
-      );
+      await sendToken(user, 200, res, req);
 
     }catch(
       error
@@ -620,11 +594,7 @@ exports.resetPassword =
 
     await user.save();
 
-    sendToken(
-      user,
-      200,
-      res
-    );
+    await sendToken(user, 200, res, req);
 
   };
 

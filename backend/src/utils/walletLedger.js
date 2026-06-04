@@ -6,9 +6,9 @@ async function recordTransaction({
   amount,
   balanceBefore,
   balanceAfter,
-  description,
-  referenceId,
-  metadata,
+  description = "",
+  referenceId = "",
+  metadata = {},
 }) {
   return Transaction.create({
     user: userId,

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import CountUp from "react-countup";
+import { formatEgp } from "@/lib/format-money";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -246,25 +247,26 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <h2 className="mt-5 text-5xl font-black text-emerald-300">
-                  $
-                  <CountUp end={dashboard?.balance || 0} decimals={0} />
+                <h2 className="mt-5 text-3xl font-black text-emerald-300 sm:text-5xl">
+                  {formatEgp(dashboard?.balance || 0)}
                 </h2>
 
                 <div className="mt-6 grid grid-cols-2 gap-4">
                   <div className="rounded-3xl bg-black/20 p-4">
-                    <p className="text-sm text-zinc-500">Pending</p>
+                    <p className="text-sm text-zinc-500">Pending orders</p>
                     <h3 className="mt-2 text-2xl font-bold">
-                      ${dashboard?.pending || 0}
+                      {dashboard?.pending || 0}
                     </h3>
                   </div>
 
-                  <div className="rounded-3xl bg-black/20 p-4">
-                    <p className="text-sm text-zinc-500">Bonus</p>
-                    <h3 className="mt-2 text-2xl font-bold text-emerald-300">
-                      ${dashboard?.bonus || 0}
-                    </h3>
-                  </div>
+                  {(dashboard?.bonus ?? 0) > 0 && (
+                    <div className="rounded-3xl bg-black/20 p-4">
+                      <p className="text-sm text-zinc-500">Bonus</p>
+                      <h3 className="mt-2 text-2xl font-bold text-emerald-300">
+                        {formatEgp(dashboard?.bonus || 0)}
+                      </h3>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -1,11 +1,23 @@
 import { apiFetch, getAuthToken } from "@/lib/api/client";
 
+export type WalletTransaction = {
+  id: string;
+  type: string;
+  amount: number;
+  description: string;
+  balanceAfter: number;
+  referenceId: string;
+  createdAt: string;
+};
+
 export type WalletData = {
   balance: number;
   bonus: number;
   spent: number;
   coupons: number;
-  transactions: { id: number; type: string; amount: string }[];
+  frozen?: boolean;
+  currency?: string;
+  transactions: WalletTransaction[];
 };
 
 const MOCK_WALLET: WalletData = {

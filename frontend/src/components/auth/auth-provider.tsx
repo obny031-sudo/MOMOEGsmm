@@ -27,6 +27,7 @@ export type AuthUser = {
   role?: string;
   balance?: number;
   verified?: boolean;
+  preferences?: { language?: string; theme?: string };
 };
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";

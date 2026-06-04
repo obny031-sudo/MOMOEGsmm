@@ -14,18 +14,19 @@ export function useAdminGuard() {
       router.replace("/login");
       return;
     }
-    const staffRoles = ["admin", "moderator", "staff"];
+    const staffRoles = ["owner", "admin", "moderator", "staff"];
     if (!staffRoles.includes(auth.user?.role || "")) {
       router.replace("/dashboard");
     }
   }, [auth.isLoading, auth.isAuthenticated, auth.user?.role, router]);
 
-  const staffRoles = ["admin", "moderator", "staff"];
+  const staffRoles = ["owner", "admin", "moderator", "staff"];
   const isStaff = staffRoles.includes(auth.user?.role || "");
 
   return {
     ...auth,
-    isAdmin: auth.user?.role === "admin",
+    isOwner: auth.user?.role === "owner",
+    isAdmin: auth.user?.role === "admin" || auth.user?.role === "owner",
     isStaff,
     ready: !auth.isLoading && auth.isAuthenticated && isStaff,
   };

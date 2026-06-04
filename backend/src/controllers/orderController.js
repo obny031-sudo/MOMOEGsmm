@@ -3,6 +3,8 @@ const Service = require("../models/Service");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
 const { recordTransaction } = require("../utils/walletLedger");
+const { appendTimeline } = require("../utils/orderTimeline");
+const { getSettingsMap } = require("../services/settingsService");
 
 function formatOrder(order) {
   return {
@@ -10,14 +12,23 @@ function formatOrder(order) {
     _id: String(order._id),
     service: order.serviceName,
     serviceId: order.serviceId,
+    category: order.category,
     link: order.link,
     quantity: order.quantity,
     status: order.status,
     amount: String(order.quantity),
     totalCharge: order.totalCharge,
+    providerCost: order.providerCost,
+    profit: order.profit,
     progress: order.progress,
     priority: order.priority,
+    providerOrderId: order.providerOrderId,
+    startCount: order.startCount,
+    currentCount: order.currentCount,
+    remains: order.remains,
+    timeline: order.timeline || [],
     createdAt: order.createdAt,
+    completedAt: order.completedAt,
   };
 }
 
@@ -44,6 +55,14 @@ exports.getOrders = async (req, res) => {
 
 exports.createOrder = async (req, res) => {
   try {
+    const settings = await getSettingsMap();
+    if (settings.maintenanceMode) {
+      return res.status(503).json({
+        success: false,
+        message: settings.maintenanceMessage || "Orders are temporarily disabled",
+      });
+    }
+
     const { serviceId, link, quantity } = req.body;
 
     if (!serviceId || !link || !quantity) {
@@ -88,7 +107,18 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    const totalCharge = Number(((qty / 1000) * service.price).toFixed(2));
+    const unitPrice = service.sellingPrice > 0 ? service.sellingPrice : service.price;
+    const totalCharge = Number(((qty / 1000) * unitPrice).toFixed(2));
+    const estimatedProviderCost = service.costPrice
+      ? Number(((qty / 1000) * service.costPrice).toFixed(2))
+      : 0;
+
+    if (estimatedProviderCost > 0 && totalCharge < estimatedProviderCost) {
+      return res.status(400).json({
+        success: false,
+        message: "Service pricing error — contact support",
+      });
+    }
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -126,25 +156,41 @@ exports.createOrder = async (req, res) => {
       referenceId: String(service.serviceId),
     });
 
+    const profit = Number((totalCharge - estimatedProviderCost).toFixed(2));
+
     const order = await Order.create({
       user: user._id,
       serviceId: service.serviceId,
       serviceName: service.title,
+      category: service.category,
       link: trimmedLink,
       quantity: qty,
-      pricePerThousand: service.price,
+      pricePerThousand: unitPrice,
       totalCharge,
+      providerCost: estimatedProviderCost,
+      profit,
       amount: qty,
-      status: "Pending",
+      status: "Queued",
+      queueStatus: "queued",
       progress: 0,
       priority: priorityFromCharge(totalCharge),
+      provider: service.provider,
+      backupProvider: service.backupProvider,
+      providerServiceId: service.providerServiceId,
+      sourceIp: req.ip || req.headers["x-forwarded-for"] || "",
+      timeline: [],
     });
+
+    await appendTimeline(order, "Created", "Order created");
+    await appendTimeline(order, "Wallet Charged", `${totalCharge} EGP deducted`);
+    await appendTimeline(order, "Queued", "Waiting for provider");
+    await order.save();
 
     await Notification.create({
       user: user._id,
       type: "order",
       title: "Order Placed",
-      text: `${service.title} · ${qty} units · $${totalCharge}`,
+      text: `${service.title} · ${qty} units · ${totalCharge} EGP`,
     });
 
     res.status(201).json({

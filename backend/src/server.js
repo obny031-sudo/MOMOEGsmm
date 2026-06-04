@@ -85,6 +85,9 @@ const ticketRoutes =
 const publicRoutes =
   require("./routes/publicRoutes");
 
+const ownerRoutes =
+  require("./routes/ownerRoutes");
+
 requiredEnv.forEach(
 
   (key)=>{
@@ -373,6 +376,11 @@ app.use(
   publicRoutes
 );
 
+app.use(
+  "/api/v1/owner",
+  ownerRoutes
+);
+
 /* 404 */
 
 app.use(
@@ -431,12 +439,17 @@ app.use(
 
 /* Server */
 
+const { startWorkers, stopWorkers } =
+  require("./workers");
+
 const server =
   app.listen(
 
     PORT,
 
     ()=>{
+
+      startWorkers();
 
       console.log(
         "🚀 MOMOEG Backend Online"
@@ -467,6 +480,8 @@ process.on(
     console.log(
       "Closing server..."
     );
+
+    stopWorkers();
 
     server.close(
       ()=>{

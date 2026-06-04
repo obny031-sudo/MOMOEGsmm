@@ -33,8 +33,8 @@ export default function LanguageToggle() {
       }
       className="
         fixed
-        bottom-5
-        left-5
+        bottom-20
+        left-6
         z-[999]
         flex
         items-center

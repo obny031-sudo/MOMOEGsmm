@@ -61,6 +61,7 @@ const userSchema =
         "staff",
         "reseller",
         "admin",
+        "owner",
       ],
       default:"user",
     },

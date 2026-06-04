@@ -1,4 +1,5 @@
 const ROLE_PERMISSIONS = {
+  owner: ["*"],
   admin: ["*"],
   moderator: [
     "users.read",
@@ -34,12 +35,13 @@ exports.requirePermission = (permission) => (req, res, next) => {
 };
 
 exports.canManageRoles = (actor, targetRole) => {
-  if (actor.role === "admin") return true;
+  if (actor.role === "owner") return targetRole !== "owner";
+  if (actor.role === "admin") return !["admin", "owner"].includes(targetRole);
   if (actor.role === "moderator") {
-    return !["admin", "moderator", "staff"].includes(targetRole);
+    return !["admin", "moderator", "staff", "owner"].includes(targetRole);
   }
   return false;
 };
 
 exports.isStaffRole = (role) =>
-  ["admin", "moderator", "staff"].includes(role);
+  ["owner", "admin", "moderator", "staff"].includes(role);

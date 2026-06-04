@@ -1,14 +1,26 @@
 const Setting = require("../models/Setting");
 
 const DEFAULTS = {
+  siteName: "MOMOEG",
+  currency: "EGP",
   defaultNewUserBalance: 0,
   dailyLoginReward: 0.00001,
   dailyLoginEnabled: true,
   maintenanceMode: false,
   maintenanceMessage: "MOMOEG is undergoing maintenance. Please check back soon.",
+  registrationEnabled: true,
+  depositsEnabled: true,
+  withdrawalsEnabled: false,
+  minDeposit: 10,
+  minOrder: 1,
+  referralPercent: 5,
+  telegram: "",
+  whatsapp: "",
+  supportEmail: "",
   featureCoupons: true,
   featureReferrals: true,
   featureDailyReward: true,
+  panicMode: false,
 };
 
 async function ensureDefaults() {

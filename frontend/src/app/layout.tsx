@@ -23,25 +23,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
 
-      <body className="bg-[#07080c] text-white">
+      <body className="page-shell antialiased">
 
-        <LanguageProvider>
-          <ThemeProvider>
-          <AuthProvider>
-            {/* Floating Contact */}
-            <ContactDock />
-
-            {/* EN / AR */}
-            <LanguageToggle />
-
-            {/* Pages */}
-            {children}
-            <ThemeToggle />
-          </AuthProvider>
-          </ThemeProvider>
-        </LanguageProvider>
+        <AuthProvider>
+          <LanguageProvider>
+            <ThemeProvider>
+              <ContactDock />
+              <LanguageToggle />
+              {children}
+              <ThemeToggle />
+            </ThemeProvider>
+          </LanguageProvider>
+        </AuthProvider>
 
       </body>
 
